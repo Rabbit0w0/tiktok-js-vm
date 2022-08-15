@@ -175,98 +175,65 @@ function execute(code, c, e) {
         g = R;
         n.q.push([j, n.p.length]);
     }
-    var k = {
-            5: 1,
-            6: 1,
-            70: 1,
-            22: 1,
-            23: 1,
-            37: 1,
-            73: 1,
-        },
-        N = {
-            72: 1,
-        },
-        B = {
-            74: 1,
-        },
-        D = {
-            11: 1,
-            12: 1,
-            24: 1,
-            26: 1,
-            27: 1,
-            31: 1,
-        },
-        X = {
-            10: 1,
-        },
-        L = {
+    var L = {
             2: 1,
             29: 1,
             30: 1,
             20: 1,
         },
-        V = [],
+        initialStorage = [],
         F = [];
 
-    function initVMStorage(a, c, e) {
-        for (var b = c; b < c + e;) {
-            var d = vm_byte_parse_common(a, b);
-            V[b] = d;
-            b += 2;
-            N[d] ?
-                ((F[b] = vm_byte_parse(a, b)), (b += 2)) :
-                k[d] ?
-                ((F[b] = vm_short_parse(a, b)), (b += 4)) :
-                B[d] ?
-                ((F[b] = vm_number_parse(a, b)), (b += 8)) :
-                D[d] ?
-                ((F[b] = vm_byte_parse_common(a, b)), (b += 2)) :
-                X[d] ?
-                ((F[b] = vm_short_parse_common(a, b)), (b += 4)) :
-                L[d] && ((F[b] = vm_short_parse_common(a, b)), (b += 4));
-            switch(d) {
-                case 72:
-                    F[b] = vm_byte_parse(a, b);
-                    b += 2;
-                    break;
-                case 5:
-                case 6:
-                case 70:
-                case 22:
-                case 23:
-                case 37:
-                case 73:
-                    F[b] = vm_short_parse(a, b);
-                    b += 4;
-                    break;
-                case 74:
-                    F[b] = vm_number_parse(a, b);
-                    b += 8;
-                    break;
-                case 11:
-                case 12:
-                case 24:
-                case 26:
-                case 27:
-                case 31:
-                    F[b] = vm_byte_parse_common(a, b);
-                    b += 2;
-                    break;
-                case 10:
-                    F[b] = vm_short_parse_common(a, b);
-                    b += 4;
-                    break;
-                default:
-                    L[d] && ((F[b] = vm_short_parse_common(a, b)), (b += 4));
+    function initVMStorage(code, start, end) {
+        for (var cur = start; cur < start + end;) {
+            var d = vm_byte_parse_common(code, cur);
+            initialStorage[cur] = d;
+            cur += 2;
+            switch (d) {
+            case 72:
+                F[cur] = vm_byte_parse(code, cur);
+                cur += 2;
+                break;
+            case 5:
+            case 6:
+            case 70:
+            case 22:
+            case 23:
+            case 37:
+            case 73:
+                F[cur] = vm_short_parse(code, cur);
+                cur += 4;
+                break;
+            case 74:
+                F[cur] = vm_number_parse(code, cur);
+                cur += 8;
+                break;
+            case 11:
+            case 12:
+            case 24:
+            case 26:
+            case 27:
+            case 31:
+                F[cur] = vm_byte_parse_common(code, cur);
+                cur += 2;
+                break;
+            case 10:
+                F[cur] = vm_short_parse_common(code, cur);
+                cur += 4;
+                break;
+            default:
+                F[cur] = vm_short_parse_common(code, cur);
+                cur += 4;
             }
         }
     }
     return runCode(code, A, T / 2, [], c, e);
 
-    function evaluate(code, c, e, b, f, _, g, w) {
-        null == _ && (_ = this);
+    // Idk why but they divided end offset by 2
+    function evaluate(code, start, e, b, f, instance, g, w) {
+        if (!instance) {
+            instance = this;
+        }
         var p,
             y,
             m,
@@ -275,12 +242,12 @@ function execute(code, c, e) {
         g && (p = g);
         var mod,
             pointer,
-            A = c,
-            O = A + 2 * e;
+            cur = start,
+            end = cur + 2 * e;
         if (!w) {
-            for (; A < O;) {
-                var I = parseInt("" + code[A] + code[A + 1], 16);
-                A += 2;
+            for (; cur < end;) {
+                var I = parseInt("" + code[cur] + code[cur + 1], 16); // A byte
+                cur += 2;
                 var opcode = 3 & (mod = (13 * I) % 241);
                 if (((mod >>= 2), opcode < 1)) {
                     opcode = 3 & mod;
@@ -305,20 +272,20 @@ function execute(code, c, e) {
                                 (insn_stack[++cur] = opcode.apply(m, y));
                         } else {
                             opcode < 16 &&
-                                ((pointer = vm_short_parse(code, A)),
+                                ((pointer = vm_short_parse(code, cur)),
                                     ((k = function c() {
                                             var e = arguments;
                                             return c.y > 0 ?
                                                 runCode(code, c.c, c.l, e, c.z, this, null, 0) :
                                                 (c.y++, runCode(code, c.c, c.l, e, c.z, this, null, 0));
                                         })
-                                        .c = A + 4),
+                                        .c = cur + 4),
                                     (k.l = pointer - 2),
                                     (k.x = evaluate),
                                     (k.y = 0),
                                     (k.z = f),
                                     (insn_stack[cur] = k),
-                                    (A += 2 * pointer - 2));
+                                    (cur += 2 * pointer - 2));
                         }
                     } else if (opcode < 2) {
                         (opcode = mod) > 8
@@ -338,13 +305,13 @@ function execute(code, c, e) {
                         if ((opcode = mod) < 9) {
                             for (
                                 p = insn_stack[cur--],
-                                pointer = vm_short_parse_common(code, A),
+                                pointer = vm_short_parse_common(code, cur),
                                 opcode = "",
                                 P = n.q[pointer][0]; P < n.q[pointer][1]; P++
                             ) {
                                 opcode += String.fromCharCode(strXorKey ^ n.p[P]);
                             }
-                            A += 4;
+                            cur += 4;
                             insn_stack[cur--][opcode] = p;
                         } else if (opcode < 13) {
                             throw insn_stack[cur--];
@@ -361,11 +328,11 @@ function execute(code, c, e) {
                     opcode = 3 & mod;
                     if (((mod >>= 2), opcode < 1)) {
                         if ((opcode = mod) < 5) {
-                            pointer = vm_short_parse(code, A);
+                            pointer = vm_short_parse(code, cur);
                             try {
                                 if (
                                     ((i[r][2] = 1),
-                                        1 == (p = evaluate(code, A + 4, pointer - 3, [], f, _, null, 0))[0])
+                                        1 == (p = evaluate(code, cur + 4, pointer - 3, [], f, instance, null, 0))[0])
                                 ) {
                                     return p;
                                 }
@@ -373,7 +340,7 @@ function execute(code, c, e) {
                                 if (
                                     i[r] &&
                                     i[r][1] &&
-                                    1 == (p = evaluate(code, i[r][1][0], i[r][1][1], [], f, _, c, 0))[0]
+                                    1 == (p = evaluate(code, i[r][1][0], i[r][1][1], [], f, instance, c, 0))[0]
                                 ) {
                                     return p;
                                 }
@@ -381,18 +348,18 @@ function execute(code, c, e) {
                                 if (
                                     i[r] &&
                                     i[r][0] &&
-                                    1 == (p = evaluate(code, i[r][0][0], i[r][0][1], [], f, _, null, 0))[0]
+                                    1 == (p = evaluate(code, i[r][0][0], i[r][0][1], [], f, instance, null, 0))[0]
                                 ) {
                                     return p;
                                 }
                                 i[r] = 0;
                                 r--;
                             }
-                            A += 2 * pointer - 2;
+                            cur += 2 * pointer - 2;
                         } else {
                             opcode < 7 ?
-                                ((pointer = vm_byte_parse_common(code, A)),
-                                    (A += 2),
+                                ((pointer = vm_byte_parse_common(code, cur)),
+                                    (cur += 2),
                                     (insn_stack[(cur -= pointer)] =
                                         0 === pointer ?
                                         new insn_stack[cur]() // If no arg
@@ -403,18 +370,18 @@ function execute(code, c, e) {
                         }
                     } else if (opcode < 2) {
                         if ((opcode = mod) > 12) {
-                            insn_stack[++cur] = vm_byte_parse(code, A);
-                            A += 2;
+                            insn_stack[++cur] = vm_byte_parse(code, cur);
+                            cur += 2;
                         } else if (opcode > 10) {
                             p = insn_stack[cur--];
                             insn_stack[cur] = insn_stack[cur] << p;
                         } else if (opcode > 8) {
                             for (
-                                pointer = vm_short_parse_common(code, A), opcode = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++
+                                pointer = vm_short_parse_common(code, cur), opcode = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++
                             ) {
                                 opcode += String.fromCharCode(strXorKey ^ n.p[P]);
                             }
-                            A += 4;
+                            cur += 4;
                             insn_stack[cur] = insn_stack[cur][opcode];
                         } else {
                             opcode > 6 && ((y = insn_stack[cur--]), (p = delete insn_stack[cur--][y]));
@@ -427,7 +394,7 @@ function execute(code, c, e) {
                             ((p = insn_stack[(cur -= 2)][insn_stack[cur + 1]] = insn_stack[cur + 2]), cur--) :
                             opcode < 13 && ((p = insn_stack[cur]), (insn_stack[++cur] = p));
                     } else if ((opcode = mod) > 12) {
-                        insn_stack[++cur] = _;
+                        insn_stack[++cur] = instance;
                     } else if (opcode > 5) {
                         p = insn_stack[cur--];
                         insn_stack[cur] = insn_stack[cur] !== p;
@@ -435,13 +402,13 @@ function execute(code, c, e) {
                         p = insn_stack[cur--];
                         insn_stack[cur] = insn_stack[cur] / p;
                     } else if (opcode > 1) {
-                        if ((pointer = vm_short_parse(code, A)) < 0) {
+                        if ((pointer = vm_short_parse(code, cur)) < 0) {
                             w = 1;
-                            initVMStorage(code, c, 2 * e);
-                            A += 2 * pointer - 2;
+                            initVMStorage(code, start, 2 * e);
+                            cur += 2 * pointer - 2;
                             break;
                         }
-                        A += 2 * pointer - 2;
+                        cur += 2 * pointer - 2;
                     } else {
                         opcode > -1 && (insn_stack[cur] = !insn_stack[cur]);
                     }
@@ -450,29 +417,34 @@ function execute(code, c, e) {
                     if (((mod >>= 2), opcode < 1)) {
                         (opcode = mod) > 13
                             ?
-                            ((insn_stack[++cur] = vm_short_parse(code, A)), (A += 4)) :
+                            ((insn_stack[++cur] = vm_short_parse(code, cur)), (cur += 4)) :
                             opcode > 11 ?
                             ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] >> p)) :
                             opcode > 9 ?
-                            ((pointer = vm_byte_parse_common(code, A)),
-                                (A += 2),
+                            ((pointer = vm_byte_parse_common(code, cur)),
+                                (cur += 2),
                                 (p = insn_stack[cur--]),
                                 (f[pointer] = p)) :
                             opcode > 7 ?
-                            ((pointer = vm_short_parse_common(code, A)),
-                                (A += 4),
+                            ((pointer = vm_short_parse_common(code, cur)),
+                                (cur += 4),
                                 (y = cur + 1),
                                 (insn_stack[(cur -= pointer - 1)] = pointer ? insn_stack.slice(cur, y) : [])) :
                             opcode > 0 && ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] > p));
                     } else if (opcode < 2) {
-                        (opcode = mod) > 12
-                            ?
-                            ((p = insn_stack[cur - 1]), (y = insn_stack[cur]), (insn_stack[++cur] = p), (insn_stack[++cur] = y)) :
-                            opcode > 3 ?
-                            ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] == p)) :
-                            opcode > 1 ?
-                            ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] + p)) :
-                            opcode > -1 && (insn_stack[++cur] = _global);
+                        if ((opcode = mod) > 12) {
+                            ((p = insn_stack[cur - 1]), (y = insn_stack[cur]), (insn_stack[++cur] = p), (insn_stack[++cur] = y))
+                        } else {
+                            if (opcode > 3) {
+                                ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] == p))
+                            } else {
+                                if (opcode > 1) {
+                                    ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] + p))
+                                } else {
+                                    opcode > -1 && (insn_stack[++cur] = _global);
+                                }
+                            }
+                        }
                     } else if (opcode < 3) {
                         if ((opcode = mod) > 13) {
                             insn_stack[++cur] = !1;
@@ -484,61 +456,61 @@ function execute(code, c, e) {
                             insn_stack[cur] = insn_stack[cur] % p;
                         } else if (opcode > 2) {
                             if (insn_stack[cur--]) {
-                                A += 4;
+                                cur += 4;
                             } else {
-                                if ((pointer = vm_short_parse(code, A)) < 0) {
+                                if ((pointer = vm_short_parse(code, cur)) < 0) {
                                     w = 1;
-                                    initVMStorage(code, c, 2 * e);
-                                    A += 2 * pointer - 2;
+                                    initVMStorage(code, start, 2 * e);
+                                    cur += 2 * pointer - 2;
                                     break;
                                 }
-                                A += 2 * pointer - 2;
+                                cur += 2 * pointer - 2;
                             }
                         } else if (opcode > 0) {
                             for (
-                                pointer = vm_short_parse_common(code, A), p = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++
+                                pointer = vm_short_parse_common(code, cur), p = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++
                             ) {
                                 p += String.fromCharCode(strXorKey ^ n.p[P]);
                             }
                             insn_stack[++cur] = p;
-                            A += 4;
+                            cur += 4;
                         }
                     } else {
                         (opcode = mod) > 7
                             ?
                             ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] | p)) :
                             opcode > 5 ?
-                            ((pointer = vm_byte_parse_common(code, A)),
-                                (A += 2),
+                            ((pointer = vm_byte_parse_common(code, cur)),
+                                (cur += 2),
                                 (insn_stack[++cur] = f["$" + pointer])) :
                             opcode > 3 &&
-                            ((pointer = vm_short_parse(code, A)),
-                                i[r][0] && !i[r][2] ?
-                                (i[r][1] = [A + 4, pointer - 3]) :
-                                (i[r++] = [0, [A + 4, pointer - 3], 0]),
-                                (A += 2 * pointer - 2));
+                            ((pointer = vm_short_parse(code, cur)),
+                                i[r][0] && (!i[r][2] ?
+                                    (i[r][1] = [cur + 4, pointer - 3]) :
+                                    (i[r++] = [0, [cur + 4, pointer - 3], 0])),
+                                (cur += 2 * pointer - 2));
                     }
                 } else {
                     opcode = 3 & mod;
                     if (((mod >>= 2), opcode > 2)) {
                         (opcode = mod) > 13
                             ?
-                            ((insn_stack[++cur] = vm_number_parse(code, A)), (A += 8)) :
+                            ((insn_stack[++cur] = vm_number_parse(code, cur)), (cur += 8)) :
                             opcode > 11 ?
                             ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] >>> p)) :
                             opcode > 9 ?
                             (insn_stack[++cur] = !0) :
                             opcode > 7 ?
-                            ((pointer = vm_byte_parse_common(code, A)), (A += 2), (insn_stack[cur] = insn_stack[cur][pointer])) :
+                            ((pointer = vm_byte_parse_common(code, cur)), (cur += 2), (insn_stack[cur] = insn_stack[cur][pointer])) :
                             opcode > 0 && ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] < p));
                     } else if (opcode > 1) {
                         (opcode = mod) > 10
                             ?
-                            ((pointer = vm_short_parse(code, A)),
+                            ((pointer = vm_short_parse(code, cur)),
                                 (i[++r] = [
-                                    [A + 4, pointer - 3], 0, 0
+                                    [cur + 4, pointer - 3], 0, 0
                                 ]),
-                                (A += 2 * pointer - 2)) :
+                                (cur += 2 * pointer - 2)) :
                             opcode > 8 ?
                             ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] ^ p)) :
                             opcode > 6 && (p = insn_stack[cur--]);
@@ -549,8 +521,8 @@ function execute(code, c, e) {
                         } else if (opcode > 5) {
                             insn_stack[cur] = ++insn_stack[cur];
                         } else if (opcode > 3) {
-                            pointer = vm_byte_parse_common(code, A);
-                            A += 2;
+                            pointer = vm_byte_parse_common(code, cur);
+                            cur += 2;
                             p = f[pointer];
                             insn_stack[++cur] = p;
                         } else if (opcode > 1) {
@@ -578,35 +550,41 @@ function execute(code, c, e) {
                         insn_stack[cur] = insn_stack[cur] - p;
                     } else if (opcode > 0) {
                         for (
-                            pointer = vm_short_parse_common(code, A), opcode = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++
+                            pointer = vm_short_parse_common(code, cur), opcode = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++
                         ) {
                             opcode += String.fromCharCode(strXorKey ^ n.p[P]);
                         }
                         opcode = +opcode;
-                        A += 4;
+                        cur += 4;
                         insn_stack[++cur] = opcode;
                     }
                 }
             }
-        }
-        if (w) {
-            for (; A < O;) {
-                I = V[A];
-                A += 2;
+        } else {
+            for (; cur < end;) {
+                I = initialStorage[cur];
+                cur += 2;
                 opcode = 3 & (mod = (13 * I) % 241);
                 if (((mod >>= 2), opcode > 2)) {
                     opcode = 3 & mod;
                     if (((mod >>= 2), opcode > 2)) {
-                        (opcode = mod) < 2
-                            ?
-                            ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] < p)) :
-                            opcode < 9 ?
-                            ((pointer = F[A]), (A += 2), (insn_stack[cur] = insn_stack[cur][pointer])) :
-                            opcode < 11 ?
-                            (insn_stack[++cur] = !0) :
-                            opcode < 13 ?
-                            ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] >>> p)) :
-                            opcode < 15 && ((insn_stack[++cur] = F[A]), (A += 8));
+                        if ((opcode = mod) < 2) {
+                            ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] < p))
+                        } else {
+                            if (opcode < 9) {
+                                ((pointer = F[cur]), (cur += 2), (insn_stack[cur] = insn_stack[cur][pointer]))
+                            } else {
+                                if (opcode < 11) {
+                                    (insn_stack[++cur] = !0)
+                                } else {
+                                    if (opcode < 13) {
+                                        ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] >>> p))
+                                    } else {
+                                        opcode < 15 && ((insn_stack[++cur] = F[cur]), (cur += 8));
+                                    }
+                                }
+                            }
+                        }
                     } else if (opcode > 1) {
                         (opcode = mod) < 6 ||
                             (opcode < 8 ?
@@ -614,11 +592,11 @@ function execute(code, c, e) {
                                 opcode < 10 ?
                                 ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] ^ p)) :
                                 opcode < 12 &&
-                                ((pointer = F[A]),
+                                ((pointer = F[cur]),
                                     (i[++r] = [
-                                        [A + 4, pointer - 3], 0, 0
+                                        [cur + 4, pointer - 3], 0, 0
                                     ]),
-                                    (A += 2 * pointer - 2)));
+                                    (cur += 2 * pointer - 2)));
                     } else if (opcode > 0) {
                         if ((opcode = mod) > 7) {
                             p = insn_stack[cur--];
@@ -626,8 +604,8 @@ function execute(code, c, e) {
                         } else if (opcode > 5) {
                             insn_stack[cur] = ++insn_stack[cur];
                         } else if (opcode > 3) {
-                            pointer = F[A];
-                            A += 2;
+                            pointer = F[cur];
+                            cur += 2;
                             p = f[pointer];
                             insn_stack[++cur] = p;
                         } else {
@@ -645,45 +623,51 @@ function execute(code, c, e) {
                                     }));
                         }
                     } else if ((opcode = mod) < 2) {
-                        for (pointer = F[A], opcode = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++) {
+                        for (pointer = F[cur], opcode = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++) {
                             opcode += String.fromCharCode(strXorKey ^ n.p[P]);
                         }
                         opcode = +opcode;
-                        A += 4;
+                        cur += 4;
                         insn_stack[++cur] = opcode;
                     } else {
-                        opcode < 4 ?
-                            ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] - p)) :
-                            opcode < 6 ?
-                            ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] === p)) :
-                            opcode < 15 && ((p = insn_stack[cur]), (insn_stack[cur] = insn_stack[cur - 1]), (insn_stack[cur - 1] = p));
+                        if (opcode < 4) {
+                            ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] - p))
+                        } else {
+                            if (opcode < 6) {
+                                ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] === p))
+                            } else {
+                                opcode < 15 && ((p = insn_stack[cur]), (insn_stack[cur] = insn_stack[cur - 1]), (insn_stack[cur - 1] = p));
+                            }
+                        }
                     }
                 } else if (opcode > 1) {
                     opcode = 3 & mod;
                     if (((mod >>= 2), opcode < 1)) {
                         (opcode = mod) > 13
                             ?
-                            ((insn_stack[++cur] = F[A]), (A += 4)) :
+                            ((insn_stack[++cur] = F[cur]), (cur += 4)) :
                             opcode > 11 ?
                             ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] >> p)) :
                             opcode > 9 ?
-                            ((pointer = F[A]), (A += 2), (p = insn_stack[cur--]), (f[pointer] = p)) :
+                            ((pointer = F[cur]), (cur += 2), (p = insn_stack[cur--]), (f[pointer] = p)) :
                             opcode > 7 ?
-                            ((pointer = F[A]),
-                                (A += 4),
-                                (y = cur + 1),
-                                (insn_stack[(cur -= pointer - 1)] = pointer ? insn_stack.slice(cur, y) : [])) :
+                            ((pointer = F[cur]), (cur += 4), (y = cur + 1), (insn_stack[(cur -= pointer - 1)] = pointer ? insn_stack.slice(cur, y) : [])) :
                             opcode > 0 && ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] > p));
                     } else if (opcode < 2) {
-                        (opcode = mod) < 1
-                            ?
-                            (insn_stack[++cur] = _global) :
-                            opcode < 3 ?
-                            ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] + p)) :
-                            opcode < 5 ?
-                            ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] == p)) :
-                            opcode < 14 &&
-                            ((p = insn_stack[cur - 1]), (y = insn_stack[cur]), (insn_stack[++cur] = p), (insn_stack[++cur] = y));
+                        if ((opcode = mod) < 1) {
+                            (insn_stack[++cur] = _global)
+                        } else {
+                            if (opcode < 3) {
+                                ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] + p))
+                            } else {
+                                if (opcode < 5) {
+                                    ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] == p))
+                                } else {
+                                    opcode < 14 &&
+                                        ((p = insn_stack[cur - 1]), (y = insn_stack[cur]), (insn_stack[++cur] = p), (insn_stack[++cur] = y));
+                                }
+                            }
+                        }
                     } else if (opcode < 3) {
                         if ((opcode = mod) > 13) {
                             insn_stack[++cur] = !1;
@@ -694,26 +678,26 @@ function execute(code, c, e) {
                             p = insn_stack[cur--];
                             insn_stack[cur] = insn_stack[cur] % p;
                         } else if (opcode > 2) {
-                            insn_stack[cur--] ? (A += 4) : (A += 2 * (pointer = F[A]) - 2);
+                            insn_stack[cur--] ? (cur += 4) : (cur += 2 * (pointer = F[cur]) - 2);
                         } else if (opcode > 0) {
-                            for (pointer = F[A], p = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++) {
+                            for (pointer = F[cur], p = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++) {
                                 p += String.fromCharCode(strXorKey ^ n.p[P]);
                             }
                             insn_stack[++cur] = p;
-                            A += 4;
+                            cur += 4;
                         }
                     } else {
                         (opcode = mod) > 7
                             ?
                             ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] | p)) :
                             opcode > 5 ?
-                            ((pointer = F[A]), (A += 2), (insn_stack[++cur] = f["$" + pointer])) :
+                            ((pointer = F[cur]), (cur += 2), (insn_stack[++cur] = f["$" + pointer])) :
                             opcode > 3 &&
-                            ((pointer = F[A]),
+                            ((pointer = F[cur]),
                                 i[r][0] && !i[r][2] ?
-                                (i[r][1] = [A + 4, pointer - 3]) :
-                                (i[r++] = [0, [A + 4, pointer - 3], 0]),
-                                (A += 2 * pointer - 2));
+                                (i[r][1] = [cur + 4, pointer - 3]) :
+                                (i[r++] = [0, [cur + 4, pointer - 3], 0]),
+                                (cur += 2 * pointer - 2));
                     }
                 } else if (opcode > 0) {
                     opcode = 3 & mod;
@@ -722,18 +706,18 @@ function execute(code, c, e) {
                             p = insn_stack[cur--];
                             insn_stack[cur] = insn_stack[cur] & p;
                         } else if (opcode > 5) {
-                            pointer = F[A];
-                            A += 2;
+                            pointer = F[cur];
+                            cur += 2;
                             insn_stack[(cur -= pointer)] =
                                 0 === pointer ?
                                 new insn_stack[cur]() :
                                 call(insn_stack[cur], spread(insn_stack.slice(cur + 1, cur + pointer + 1)));
                         } else if (opcode > 3) {
-                            pointer = F[A];
+                            pointer = F[cur];
                             try {
                                 if (
                                     ((i[r][2] = 1),
-                                        1 == (p = evaluate(code, A + 4, pointer - 3, [], f, _, null, 0))[0])
+                                        1 == (p = evaluate(code, cur + 4, pointer - 3, [], f, instance, null, 0))[0])
                                 ) {
                                     return p;
                                 }
@@ -741,7 +725,7 @@ function execute(code, c, e) {
                                 if (
                                     i[r] &&
                                     i[r][1] &&
-                                    1 == (p = evaluate(code, i[r][1][0], i[r][1][1], [], f, _, c, 0))[0]
+                                    1 == (p = evaluate(code, i[r][1][0], i[r][1][1], [], f, instance, c, 0))[0]
                                 ) {
                                     return p;
                                 }
@@ -749,65 +733,60 @@ function execute(code, c, e) {
                                 if (
                                     i[r] &&
                                     i[r][0] &&
-                                    1 == (p = evaluate(code, i[r][0][0], i[r][0][1], [], f, _, null, 0))[0]
+                                    1 == (p = evaluate(code, i[r][0][0], i[r][0][1], [], f, instance, null, 0))[0]
                                 ) {
                                     return p;
                                 }
                                 i[r] = 0;
                                 r--;
                             }
-                            A += 2 * pointer - 2;
+                            cur += 2 * pointer - 2;
                         }
                     } else if (opcode < 2) {
                         if ((opcode = mod) < 8) {
                             y = insn_stack[cur--];
                             p = delete insn_stack[cur--][y];
                         } else if (opcode < 10) {
-                            for (pointer = F[A], opcode = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++) {
+                            for (pointer = F[cur], opcode = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++) {
                                 opcode += String.fromCharCode(strXorKey ^ n.p[P]);
                             }
-                            A += 4;
+                            cur += 4;
                             insn_stack[cur] = insn_stack[cur][opcode];
                         } else {
                             opcode < 12 ?
                                 ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] << p)) :
-                                opcode < 14 && ((insn_stack[++cur] = F[A]), (A += 2));
+                                opcode < 14 && ((insn_stack[++cur] = F[cur]), (cur += 2));
                         }
                     } else {
-                        // opcode < 3 ?
-                        //     (opcode = mod) < 2 ? // COND
-                        //         (insn_stack[++cur] = p) :
-                        //             opcode < 11 ?
-                        //                 ((p = insn_stack[(cur -= 2)][insn_stack[cur + 1]] = insn_stack[cur + 2]), cur--) :
-                        //                 opcode < 13 && ((p = insn_stack[cur]), (insn_stack[++cur] = p)) :
-                        //             (opcode = mod) > 12 ? // COND
-                        //                 (insn_stack[++cur] = _) :
-                        //                 opcode > 5 ?
-                        //                     ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] !== p)) :
-                        //                     opcode > 3 ?
-                        //                         ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] / p)) :
-                        //                             opcode > 1 ?
-                        //                                 (A += 2 * (argNum = F[A]) - 2) :
-                        //                                 opcode > -1 && (insn_stack[cur] = !insn_stack[cur]);
                         if (opcode < 3) {
-                            opcode = mod
-                            if (opcode < 2) {
-                                insn_stack[++cur] = p
-                            } else if (opcode < 11) {
-                                    ((p = insn_stack[(cur -= 2)][insn_stack[cur + 1]] = insn_stack[cur + 2]), cur--);
+                            if ((opcode = mod) < 2) {
+                                // COND
+                                (insn_stack[++cur] = p)
                             } else {
-                                opcode < 13 && ((p = insn_stack[cur]), (insn_stack[++cur] = p));
+                                if (opcode < 11) {
+                                    ((p = insn_stack[(cur -= 2)][insn_stack[cur + 1]] = insn_stack[cur + 2]), cur--)
+                                } else {
+                                    opcode < 13 && ((p = insn_stack[cur]), (insn_stack[++cur] = p))
+                                }
                             }
                         } else {
-                            opcode = mod
-                            if (opcode > 12) {
-                                (insn_stack[++cur] = _);
-                            } else if (opcode > 3) {
-                                ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] / p))
-                            } else if (opcode > 1) {
-                                (A += 2 * (pointer = F[A]) - 2)
+                            if ((opcode = mod) > 12) {
+                                // COND
+                                (insn_stack[++cur] = _)
                             } else {
-                                opcode > -1 && (insn_stack[cur] = !insn_stack[cur]);
+                                if (opcode > 5) {
+                                    ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] !== p))
+                                } else {
+                                    if (opcode > 3) {
+                                        ((p = insn_stack[cur--]), (insn_stack[cur] = insn_stack[cur] / p))
+                                    } else {
+                                        if (opcode > 1) {
+                                            (A += 2 * (argNum = F[A]) - 2)
+                                        } else {
+                                            opcode > -1 && (insn_stack[cur] = !insn_stack[cur]);
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -834,20 +813,20 @@ function execute(code, c, e) {
                                 (insn_stack[++cur] = opcode.apply(m, y));
                         } else if (opcode < 16) {
                             var k;
-                            pointer = F[A];
+                            pointer = F[cur];
                             (k = function c() {
                                 var e = arguments;
                                 return c.y > 0 ?
                                     runCode(code, c.c, c.l, e, c.z, this, null, 0) :
                                     (c.y++, runCode(code, c.c, c.l, e, c.z, this, null, 0));
                             })
-                            .c = A + 4;
+                            .c = cur + 4;
                             k.l = pointer - 2;
                             k.x = evaluate;
                             k.y = 0;
                             k.z = f;
                             insn_stack[cur] = k;
-                            A += 2 * pointer - 2;
+                            cur += 2 * pointer - 2;
                         }
                     } else if (opcode < 2) {
                         (opcode = mod) > 8
@@ -866,11 +845,11 @@ function execute(code, c, e) {
                     } else if (opcode < 3) {
                         if ((opcode = mod) < 9) {
                             for (
-                                p = insn_stack[cur--], pointer = F[A], opcode = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++
+                                p = insn_stack[cur--], pointer = F[cur], opcode = "", P = n.q[pointer][0]; P < n.q[pointer][1]; P++
                             ) {
                                 opcode += String.fromCharCode(strXorKey ^ n.p[P]);
                             }
-                            A += 4;
+                            cur += 4;
                             insn_stack[cur--][opcode] = p;
                         } else if (opcode < 13) {
                             throw insn_stack[cur--];
@@ -901,8 +880,8 @@ function execute(code, c, e) {
         for (i = 0, _ = r.length = b.length; i < _; i++) {
             r[i] = b[i];
         }
-        n && !V[start] && initVMStorage(code, start, 2 * end);
-        return V[start] ?
+        n && !initialStorage[start] && initVMStorage(code, start, 2 * end);
+        return initialStorage[start] ?
             evaluate(code, start, end, 0, r, f, null, 1)[1] :
             evaluate(code, start, end, 0, r, f, null, 0)[1];
     }
